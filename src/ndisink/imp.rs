@@ -1,7 +1,7 @@
 use glib::subclass::prelude::*;
 use gst::prelude::*;
 use gst::subclass::prelude::*;
-use gst::{gst_debug, gst_error, gst_info, gst_trace};
+use gst::{debug, error, info, trace};
 use gst_base::prelude::*;
 use gst_base::subclass::prelude::*;
 
@@ -195,7 +195,7 @@ impl BaseSinkImpl for NdiSink {
             audio_info: None,
         };
         *state_storage = Some(state);
-        gst_info!(CAT, obj: element, "Started");
+        info!(CAT, obj = element, "Started");
 
         Ok(())
     }
@@ -204,7 +204,7 @@ impl BaseSinkImpl for NdiSink {
         let mut state_storage = self.state.lock().unwrap();
 
         *state_storage = None;
-        gst_info!(CAT, obj: element, "Stopped");
+        info!(CAT, obj = element, "Stopped");
 
         Ok(())
     }
@@ -218,7 +218,7 @@ impl BaseSinkImpl for NdiSink {
     }
 
     fn set_caps(&self, element: &Self::Type, caps: &gst::Caps) -> Result<(), gst::LoggableError> {
-        gst_debug!(CAT, obj: element, "Setting caps {}", caps);
+        debug!(CAT, obj = element, "Setting caps {}", caps);
 
         let mut state_storage = self.state.lock().unwrap();
         let state = match &mut *state_storage {
@@ -260,13 +260,13 @@ impl BaseSinkImpl for NdiSink {
                 for (buffer, info, timecode) in audio_meta.buffers() {
                     let frame = crate::ndi::AudioFrame::try_from_buffer(info, buffer, *timecode)
                         .map_err(|_| {
-                            gst_error!(CAT, obj: element, "Unsupported audio frame");
+                            error!(CAT, obj = element, "Unsupported audio frame");
                             gst::FlowError::NotNegotiated
                         })?;
 
-                    gst_trace!(
+                    trace!(
                         CAT,
-                        obj: element,
+                        obj = element,
                         "Sending audio buffer {:?} with timecode {} and format {:?}",
                         buffer,
                         if *timecode < 0 {
@@ -297,19 +297,19 @@ impl BaseSinkImpl for NdiSink {
 
                 let frame = gst_video::VideoFrameRef::from_buffer_ref_readable(buffer, info)
                     .map_err(|_| {
-                        gst_error!(CAT, obj: element, "Failed to map buffer");
+                        error!(CAT, obj = element, "Failed to map buffer");
                         gst::FlowError::Error
                     })?;
 
                 let frame = crate::ndi::VideoFrame::try_from_video_frame(&frame, timecode)
                     .map_err(|_| {
-                        gst_error!(CAT, obj: element, "Unsupported video frame");
+                        error!(CAT, obj = element, "Unsupported video frame");
                         gst::FlowError::NotNegotiated
                     })?;
 
-                gst_trace!(
+                trace!(
                     CAT,
-                    obj: element,
+                    obj = element,
                     "Sending video buffer {:?} with timecode {} and format {:?}",
                     buffer,
                     if timecode < 0 {
@@ -337,13 +337,13 @@ impl BaseSinkImpl for NdiSink {
 
             let frame =
                 crate::ndi::AudioFrame::try_from_buffer(info, buffer, timecode).map_err(|_| {
-                    gst_error!(CAT, obj: element, "Unsupported audio frame");
+                    error!(CAT, obj = element, "Unsupported audio frame");
                     gst::FlowError::NotNegotiated
                 })?;
 
-            gst_trace!(
+            trace!(
                 CAT,
-                obj: element,
+                obj = element,
                 "Sending audio buffer {:?} with timecode {} and format {:?}",
                 buffer,
                 if timecode < 0 {

@@ -1,6 +1,6 @@
 use gst::prelude::*;
 use gst::subclass::prelude::*;
-use gst::{gst_debug, gst_error};
+use gst::{debug, error};
 use gst_base::prelude::*;
 use gst_base::subclass::base_src::CreateSuccess;
 use gst_base::subclass::prelude::*;
@@ -204,9 +204,9 @@ impl ObjectImpl for NdiSrc {
             "ndi-name" => {
                 let mut settings = self.settings.lock().unwrap();
                 let ndi_name = value.get().unwrap();
-                gst_debug!(
+                debug!(
                     CAT,
-                    obj: obj,
+                    obj = obj,
                     "Changing ndi-name from {:?} to {:?}",
                     settings.ndi_name,
                     ndi_name,
@@ -216,9 +216,9 @@ impl ObjectImpl for NdiSrc {
             "url-address" => {
                 let mut settings = self.settings.lock().unwrap();
                 let url_address = value.get().unwrap();
-                gst_debug!(
+                debug!(
                     CAT,
-                    obj: obj,
+                    obj = obj,
                     "Changing url-address from {:?} to {:?}",
                     settings.url_address,
                     url_address,
@@ -228,9 +228,9 @@ impl ObjectImpl for NdiSrc {
             "receiver-ndi-name" => {
                 let mut settings = self.settings.lock().unwrap();
                 let receiver_ndi_name = value.get::<Option<String>>().unwrap();
-                gst_debug!(
+                debug!(
                     CAT,
-                    obj: obj,
+                    obj = obj,
                     "Changing receiver-ndi-name from {:?} to {:?}",
                     settings.receiver_ndi_name,
                     receiver_ndi_name,
@@ -241,9 +241,9 @@ impl ObjectImpl for NdiSrc {
             "connect-timeout" => {
                 let mut settings = self.settings.lock().unwrap();
                 let connect_timeout = value.get().unwrap();
-                gst_debug!(
+                debug!(
                     CAT,
-                    obj: obj,
+                    obj = obj,
                     "Changing connect-timeout from {} to {}",
                     settings.connect_timeout,
                     connect_timeout,
@@ -253,9 +253,9 @@ impl ObjectImpl for NdiSrc {
             "timeout" => {
                 let mut settings = self.settings.lock().unwrap();
                 let timeout = value.get().unwrap();
-                gst_debug!(
+                debug!(
                     CAT,
-                    obj: obj,
+                    obj = obj,
                     "Changing timeout from {} to {}",
                     settings.timeout,
                     timeout,
@@ -265,9 +265,9 @@ impl ObjectImpl for NdiSrc {
             "max-queue-length" => {
                 let mut settings = self.settings.lock().unwrap();
                 let max_queue_length = value.get().unwrap();
-                gst_debug!(
+                debug!(
                     CAT,
-                    obj: obj,
+                    obj = obj,
                     "Changing max-queue-length from {} to {}",
                     settings.max_queue_length,
                     max_queue_length,
@@ -277,9 +277,9 @@ impl ObjectImpl for NdiSrc {
             "bandwidth" => {
                 let mut settings = self.settings.lock().unwrap();
                 let bandwidth = value.get().unwrap();
-                gst_debug!(
+                debug!(
                     CAT,
-                    obj: obj,
+                    obj = obj,
                     "Changing bandwidth from {} to {}",
                     settings.bandwidth,
                     bandwidth,
@@ -289,9 +289,9 @@ impl ObjectImpl for NdiSrc {
             "color-format" => {
                 let mut settings = self.settings.lock().unwrap();
                 let color_format = value.get().unwrap();
-                gst_debug!(
+                debug!(
                     CAT,
-                    obj: obj,
+                    obj = obj,
                     "Changing color format from {:?} to {:?}",
                     settings.color_format,
                     color_format,
@@ -301,9 +301,9 @@ impl ObjectImpl for NdiSrc {
             "timestamp-mode" => {
                 let mut settings = self.settings.lock().unwrap();
                 let timestamp_mode = value.get().unwrap();
-                gst_debug!(
+                debug!(
                     CAT,
-                    obj: obj,
+                    obj = obj,
                     "Changing timestamp mode from {:?} to {:?}",
                     settings.timestamp_mode,
                     timestamp_mode
@@ -428,7 +428,7 @@ impl BaseSrcImpl for NdiSrc {
     }
 
     fn unlock(&self, element: &Self::Type) -> Result<(), gst::ErrorMessage> {
-        gst_debug!(CAT, obj: element, "Unlocking",);
+        debug!(CAT, obj = element, "Unlocking",);
         if let Some(ref controller) = *self.receiver_controller.lock().unwrap() {
             controller.set_flushing(true);
         }
@@ -436,7 +436,7 @@ impl BaseSrcImpl for NdiSrc {
     }
 
     fn unlock_stop(&self, element: &Self::Type) -> Result<(), gst::ErrorMessage> {
-        gst_debug!(CAT, obj: element, "Stop unlocking",);
+        debug!(CAT, obj = element, "Stop unlocking",);
         if let Some(ref controller) = *self.receiver_controller.lock().unwrap() {
             controller.set_flushing(false);
         }
@@ -516,9 +516,9 @@ impl BaseSrcImpl for NdiSrc {
 
                     let max = settings.max_queue_length as u64 * latency;
 
-                    gst_debug!(
+                    debug!(
                         CAT,
-                        obj: element,
+                        obj = element,
                         "Returning latency min {} max {}",
                         min,
                         max
@@ -545,7 +545,7 @@ impl BaseSrcImpl for NdiSrc {
             match state.receiver.take() {
                 Some(recv) => recv,
                 None => {
-                    gst_error!(CAT, obj: element, "Have no receiver");
+                    error!(CAT, obj = element, "Have no receiver");
                     return Err(gst::FlowError::Error);
                 }
             }

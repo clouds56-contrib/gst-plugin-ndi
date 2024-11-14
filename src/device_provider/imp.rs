@@ -1,6 +1,6 @@
 use gst::prelude::*;
 use gst::subclass::prelude::*;
-use gst::{gst_error, gst_log, gst_trace};
+use gst::{error, log, trace};
 
 use once_cell::sync::OnceCell;
 
@@ -72,7 +72,7 @@ impl DeviceProviderImpl for DeviceProvider {
     fn start(&self, device_provider: &Self::Type) -> Result<(), gst::LoggableError> {
         let mut thread_guard = self.thread.lock().unwrap();
         if thread_guard.is_some() {
-            gst_log!(CAT, obj: device_provider, "Device provider already started");
+            log!(CAT, obj = device_provider, "Device provider already started");
             return Ok(());
         }
 
@@ -90,13 +90,13 @@ impl DeviceProviderImpl for DeviceProvider {
             {
                 let mut find_guard = imp.find.lock().unwrap();
                 if find_guard.is_some() {
-                    gst_log!(CAT, obj: &device_provider, "Already started");
+                    log!(CAT, obj = &device_provider, "Already started");
                     return;
                 }
 
                 let find = match ndi::FindInstance::builder().build() {
                     None => {
-                        gst_error!(CAT, obj: &device_provider, "Failed to create Find instance");
+                        error!(CAT, obj = &device_provider, "Failed to create Find instance");
                         return;
                     }
                     Some(find) => find,
@@ -140,7 +140,7 @@ impl DeviceProvider {
         };
 
         if !find.wait_for_sources(if first { 1000 } else { 5000 }) {
-            gst_trace!(CAT, obj: device_provider, "No new sources found");
+            trace!(CAT, obj = device_provider, "No new sources found");
             return;
         }
 
@@ -157,9 +157,9 @@ impl DeviceProvider {
             let old_source = old_device_imp.source.get().unwrap();
 
             if !sources.contains(&*old_source) {
-                gst_log!(
+                log!(
                     CAT,
-                    obj: device_provider,
+                    obj = device_provider,
                     "Source {:?} disappeared",
                     old_source
                 );
@@ -184,7 +184,7 @@ impl DeviceProvider {
 
         // Now go through all new devices and announce them
         for source in sources {
-            gst_log!(CAT, obj: device_provider, "Source {:?} appeared", source);
+            log!(CAT, obj = device_provider, "Source {:?} appeared", source);
             let device = super::Device::new(&source);
             device_provider.device_add(&device);
             current_devices_guard.push(device);

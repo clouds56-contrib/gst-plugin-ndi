@@ -1,6 +1,6 @@
 use gst::prelude::*;
 use gst::subclass::prelude::*;
-use gst::{gst_debug, gst_error, gst_log};
+use gst::{debug, error, log};
 
 use std::sync::Mutex;
 
@@ -156,10 +156,10 @@ impl NdiSrcDemux {
         element: &super::NdiSrcDemux,
         mut buffer: gst::Buffer,
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
-        gst_log!(CAT, obj: pad, "Handling buffer {:?}", buffer);
+        log!(CAT, obj = pad, "Handling buffer {:?}", buffer);
 
         let meta = buffer.make_mut().meta_mut::<ndisrcmeta::NdiSrcMeta>().ok_or_else(|| {
-            gst_error!(CAT, obj: element, "Buffer without NDI source meta");
+            error!(CAT, obj = element, "Buffer without NDI source meta");
             gst::FlowError::Error
         })?;
 
@@ -174,7 +174,7 @@ impl NdiSrcDemux {
                 if let Some(ref pad) = state.audio_pad {
                     srcpad = pad.clone();
                 } else {
-                    gst_debug!(CAT, obj: element, "Adding audio pad with caps {}", caps);
+                    debug!(CAT, obj = element, "Adding audio pad with caps {}", caps);
 
                     let klass = element.element_class();
                     let templ = klass.pad_template("audio").unwrap();
@@ -215,7 +215,7 @@ impl NdiSrcDemux {
                 }
 
                 if state.audio_caps.as_ref() != Some(&caps) {
-                    gst_debug!(CAT, obj: element, "Audio caps changed to {}", caps);
+                    debug!(CAT, obj = element, "Audio caps changed to {}", caps);
                     events.push(gst::event::Caps::new(&caps));
                     state.audio_caps = Some(caps);
                 }
@@ -224,7 +224,7 @@ impl NdiSrcDemux {
                 if let Some(ref pad) = state.video_pad {
                     srcpad = pad.clone();
                 } else {
-                    gst_debug!(CAT, obj: element, "Adding video pad with caps {}", caps);
+                    debug!(CAT, obj = element, "Adding video pad with caps {}", caps);
 
                     let klass = element.element_class();
                     let templ = klass.pad_template("video").unwrap();
@@ -265,7 +265,7 @@ impl NdiSrcDemux {
                 }
 
                 if state.video_caps.as_ref() != Some(&caps) {
-                    gst_debug!(CAT, obj: element, "Video caps changed to {}", caps);
+                    debug!(CAT, obj = element, "Video caps changed to {}", caps);
                     events.push(gst::event::Caps::new(&caps));
                     state.video_caps = Some(caps);
                 }
@@ -295,7 +295,7 @@ impl NdiSrcDemux {
     ) -> bool {
         use gst::EventView;
 
-        gst_log!(CAT, obj: pad, "Handling event {:?}", event);
+        log!(CAT, obj = pad, "Handling event {:?}", event);
         if let EventView::Eos(_) = event.view() {
             if element.num_src_pads() == 0 {
                 // error out on EOS if no src pad are available

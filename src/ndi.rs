@@ -5,6 +5,7 @@ use std::mem;
 use std::ptr;
 
 use byte_slice_cast::*;
+use gst_video::VideoFrameExt as _;
 
 pub fn initialize() -> bool {
     unsafe { NDIlib_initialize() }
