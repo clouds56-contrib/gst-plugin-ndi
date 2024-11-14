@@ -39,20 +39,20 @@ impl ObjectSubclass for NdiSrcDemux {
 
     fn with_class(klass: &Self::Class) -> Self {
         let templ = klass.pad_template("sink").unwrap();
-        let sinkpad = gst::Pad::builder_with_template(&templ, Some("sink"))
+        let sinkpad = gst::Pad::builder_from_template(&templ).name("sink")
             .flags(gst::PadFlags::FIXED_CAPS)
             .chain_function(|pad, parent, buffer| {
                 NdiSrcDemux::catch_panic_pad_function(
                     parent,
                     || Err(gst::FlowError::Error),
-                    |self_, element| self_.sink_chain(pad, element, buffer),
+                    |self_| self_.sink_chain(pad, buffer),
                 )
             })
             .event_function(|pad, parent, event| {
                 NdiSrcDemux::catch_panic_pad_function(
                     parent,
                     || false,
-                    |self_, element| self_.sink_event(pad, element, event),
+                    |self_| self_.sink_event(pad, event),
                 )
             })
             .build();
@@ -65,8 +65,9 @@ impl ObjectSubclass for NdiSrcDemux {
 }
 
 impl ObjectImpl for NdiSrcDemux {
-    fn constructed(&self, obj: &Self::Type) {
-        self.parent_constructed(obj);
+    fn constructed(&self) {
+        self.parent_constructed();
+        let obj = self.obj();
 
         obj.add_pad(&self.sinkpad).unwrap();
     }
@@ -126,10 +127,10 @@ impl ElementImpl for NdiSrcDemux {
 
     fn change_state(
         &self,
-        element: &Self::Type,
         transition: gst::StateChange,
     ) -> Result<gst::StateChangeSuccess, gst::StateChangeError> {
-        let res = self.parent_change_state(element, transition)?;
+        let res = self.parent_change_state(transition)?;
+        let element = self.obj();
 
         match transition {
             gst::StateChange::PausedToReady => {
@@ -153,10 +154,10 @@ impl NdiSrcDemux {
     fn sink_chain(
         &self,
         pad: &gst::Pad,
-        element: &super::NdiSrcDemux,
         mut buffer: gst::Buffer,
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
         log!(CAT, obj = pad, "Handling buffer {:?}", buffer);
+        let element = self.obj();
 
         let meta = buffer.make_mut().meta_mut::<ndisrcmeta::NdiSrcMeta>().ok_or_else(|| {
             error!(CAT, obj = element, "Buffer without NDI source meta");
@@ -178,7 +179,7 @@ impl NdiSrcDemux {
 
                     let klass = element.element_class();
                     let templ = klass.pad_template("audio").unwrap();
-                    let pad = gst::Pad::builder_with_template(&templ, Some("audio"))
+                    let pad = gst::Pad::builder_from_template(&templ).name("audio")
                         .flags(gst::PadFlags::FIXED_CAPS)
                         .build();
 
@@ -228,7 +229,7 @@ impl NdiSrcDemux {
 
                     let klass = element.element_class();
                     let templ = klass.pad_template("video").unwrap();
-                    let pad = gst::Pad::builder_with_template(&templ, Some("video"))
+                    let pad = gst::Pad::builder_from_template(&templ).name("video")
                         .flags(gst::PadFlags::FIXED_CAPS)
                         .build();
 
@@ -290,10 +291,10 @@ impl NdiSrcDemux {
 
     fn sink_event(&self,
         pad: &gst::Pad,
-        element: &super::NdiSrcDemux,
         event: gst::Event
     ) -> bool {
         use gst::EventView;
+        let element = self.obj();
 
         log!(CAT, obj = pad, "Handling event {:?}", event);
         if let EventView::Eos(_) = event.view() {
@@ -306,7 +307,7 @@ impl NdiSrcDemux {
                 );
             }
         }
-        pad.event_default(Some(element), event)
+        gst::Pad::event_default(pad, Some(&*element), event)
     }
 
 }

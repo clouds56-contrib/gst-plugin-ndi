@@ -6,7 +6,7 @@ use gst_base::subclass::base_src::CreateSuccess;
 use gst_base::subclass::prelude::*;
 
 use std::sync::Mutex;
-use std::{i32, u32};
+use std::u32;
 
 use once_cell::sync::Lazy;
 
@@ -105,101 +105,89 @@ impl ObjectImpl for NdiSrc {
     fn properties() -> &'static [glib::ParamSpec] {
         static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
             vec![
-                glib::ParamSpecString::new(
-                    "ndi-name",
-                    "NDI Name",
-                    "NDI stream name of the sender",
-                    None,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecString::new(
-                    "url-address",
-                    "URL/Address",
-                    "URL/address and port of the sender, e.g. 127.0.0.1:5961",
-                    None,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecString::new(
-                    "receiver-ndi-name",
-                    "Receiver NDI Name",
-                    "NDI stream name of this receiver",
-                    Some(&*DEFAULT_RECEIVER_NDI_NAME),
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecUInt::new(
-                    "connect-timeout",
-                    "Connect Timeout",
-                    "Connection timeout in ms",
-                    0,
-                    u32::MAX,
-                    10000,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecUInt::new(
-                    "timeout",
-                    "Timeout",
-                    "Receive timeout in ms",
-                    0,
-                    u32::MAX,
-                    5000,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecUInt::new(
-                    "max-queue-length",
-                    "Max Queue Length",
-                    "Maximum receive queue length",
-                    0,
-                    u32::MAX,
-                    10,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecInt::new(
-                    "bandwidth",
-                    "Bandwidth",
-                    "Bandwidth, -10 metadata-only, 10 audio-only, 100 highest",
-                    -10,
-                    100,
-                    100,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecEnum::new(
-                    "color-format",
-                    "Color Format",
-                    "Receive color format",
-                    RecvColorFormat::static_type(),
-                    RecvColorFormat::UyvyBgra as u32 as i32,
-                    glib::ParamFlags::READWRITE,
-                ),
-                glib::ParamSpecEnum::new(
-                    "timestamp-mode",
-                    "Timestamp Mode",
-                    "Timestamp information to use for outgoing PTS",
-                    TimestampMode::static_type(),
-                    TimestampMode::ReceiveTimeTimecode as i32,
-                    glib::ParamFlags::READWRITE,
-                ),
+                glib::ParamSpecString::builder("ndi-name")
+                    .nick("NDI Name")
+                    .blurb("NDI stream name of the sender")
+                    .default_value(None)
+                    .flags(glib::ParamFlags::READWRITE)
+                    .build(),
+                glib::ParamSpecString::builder("url-address")
+                    .nick("URL/Address")
+                    .blurb("URL/address and port of the sender, e.g. 127.0.0.1:5961")
+                    .default_value(None)
+                    .flags(glib::ParamFlags::READWRITE)
+                    .build(),
+                glib::ParamSpecString::builder("receiver-ndi-name")
+                    .nick("Receiver NDI Name")
+                    .blurb("NDI stream name of this receiver")
+                    .default_value(Some(DEFAULT_RECEIVER_NDI_NAME.as_str()))
+                    .flags(glib::ParamFlags::READWRITE)
+                    .build(),
+                glib::ParamSpecUInt::builder("connect-timeout")
+                    .nick("Connect Timeout")
+                    .blurb("Connection timeout in ms")
+                    .minimum(0)
+                    .maximum(u32::MAX)
+                    .default_value(10000)
+                    .flags(glib::ParamFlags::READWRITE)
+                    .build(),
+                glib::ParamSpecUInt::builder("timeout")
+                    .nick("Timeout")
+                    .blurb("Receive timeout in ms")
+                    .minimum(0)
+                    .maximum(u32::MAX)
+                    .default_value(5000)
+                    .flags(glib::ParamFlags::READWRITE)
+                    .build(),
+                glib::ParamSpecUInt::builder("max-queue-length")
+                    .nick("Max Queue Length")
+                    .blurb("Maximum receive queue length")
+                    .minimum(0)
+                    .maximum(u32::MAX)
+                    .default_value(10)
+                    .flags(glib::ParamFlags::READWRITE)
+                    .build(),
+                glib::ParamSpecInt::builder("bandwidth")
+                    .nick("Bandwidth")
+                    .blurb("Bandwidth, -10 metadata-only, 10 audio-only, 100 highest")
+                    .minimum(-10)
+                    .maximum(100)
+                    .default_value(100)
+                    .flags(glib::ParamFlags::READWRITE)
+                    .build(),
+                glib::ParamSpecEnum::builder_with_default("color-format", RecvColorFormat::UyvyBgra)
+                    .nick("Color Format")
+                    .blurb("Receive color format")
+                    .flags(glib::ParamFlags::READWRITE)
+                    .build(),
+                glib::ParamSpecEnum::builder_with_default("timestamp-mode", TimestampMode::ReceiveTimeTimecode)
+                    .nick("Timestamp Mode")
+                    .blurb("Timestamp information to use for outgoing PTS")
+                    .flags(glib::ParamFlags::READWRITE)
+                    .build(),
             ]
         });
 
         PROPERTIES.as_ref()
     }
 
-    fn constructed(&self, obj: &Self::Type) {
-        self.parent_constructed(obj);
+    fn constructed(&self) {
+        self.parent_constructed();
 
         // Initialize live-ness and notify the base class that
         // we'd like to operate in Time format
+        let obj = self.obj();
         obj.set_live(true);
         obj.set_format(gst::Format::Time);
     }
 
     fn set_property(
         &self,
-        obj: &Self::Type,
         _id: usize,
         value: &glib::Value,
         pspec: &glib::ParamSpec,
     ) {
+        let obj= self.obj();
         match pspec.name() {
             "ndi-name" => {
                 let mut settings = self.settings.lock().unwrap();
@@ -309,7 +297,7 @@ impl ObjectImpl for NdiSrc {
                     timestamp_mode
                 );
                 if settings.timestamp_mode != timestamp_mode {
-                    let _ = obj.post_message(gst::message::Latency::builder().src(obj).build());
+                    let _ = obj.post_message(gst::message::Latency::builder().src(&*obj).build());
                 }
                 settings.timestamp_mode = timestamp_mode;
             }
@@ -317,7 +305,7 @@ impl ObjectImpl for NdiSrc {
         }
     }
 
-    fn property(&self, _obj: &Self::Type, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
+    fn property(&self, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
         match pspec.name() {
             "ndi-name" => {
                 let settings = self.settings.lock().unwrap();
@@ -394,7 +382,6 @@ impl ElementImpl for NdiSrc {
 
     fn change_state(
         &self,
-        element: &Self::Type,
         transition: gst::StateChange,
     ) -> Result<gst::StateChangeSuccess, gst::StateChangeError> {
         match transition {
@@ -416,34 +403,35 @@ impl ElementImpl for NdiSrc {
             _ => (),
         }
 
-        self.parent_change_state(element, transition)
+        self.parent_change_state(transition)
     }
 }
 
 impl BaseSrcImpl for NdiSrc {
-    fn negotiate(&self, element: &Self::Type) -> Result<(), gst::LoggableError> {
-        element
+    fn negotiate(&self) -> Result<(), gst::LoggableError> {
+        self.obj()
             .set_caps(&gst::Caps::builder("application/x-ndi").build())
             .map_err(|_| gst::loggable_error!(CAT, "Failed to negotiate caps",))
     }
 
-    fn unlock(&self, element: &Self::Type) -> Result<(), gst::ErrorMessage> {
-        debug!(CAT, obj = element, "Unlocking",);
+    fn unlock(&self) -> Result<(), gst::ErrorMessage> {
+        debug!(CAT, obj = self.obj(), "Unlocking",);
         if let Some(ref controller) = *self.receiver_controller.lock().unwrap() {
             controller.set_flushing(true);
         }
         Ok(())
     }
 
-    fn unlock_stop(&self, element: &Self::Type) -> Result<(), gst::ErrorMessage> {
-        debug!(CAT, obj = element, "Stop unlocking",);
+    fn unlock_stop(&self) -> Result<(), gst::ErrorMessage> {
+        debug!(CAT, obj = self.obj(), "Stop unlocking",);
         if let Some(ref controller) = *self.receiver_controller.lock().unwrap() {
             controller.set_flushing(false);
         }
         Ok(())
     }
 
-    fn start(&self, element: &Self::Type) -> Result<(), gst::ErrorMessage> {
+    fn start(&self) -> Result<(), gst::ErrorMessage> {
+        let element = self.obj();
         *self.state.lock().unwrap() = Default::default();
         let settings = self.settings.lock().unwrap().clone();
 
@@ -483,7 +471,7 @@ impl BaseSrcImpl for NdiSrc {
         }
     }
 
-    fn stop(&self, _element: &Self::Type) -> Result<(), gst::ErrorMessage> {
+    fn stop(&self) -> Result<(), gst::ErrorMessage> {
         if let Some(ref controller) = self.receiver_controller.lock().unwrap().take() {
             controller.shutdown();
         }
@@ -491,16 +479,16 @@ impl BaseSrcImpl for NdiSrc {
         Ok(())
     }
 
-    fn query(&self, element: &Self::Type, query: &mut gst::QueryRef) -> bool {
-        use gst::QueryView;
+    fn query(&self, query: &mut gst::QueryRef) -> bool {
+        use gst::QueryViewMut;
 
         match query.view_mut() {
-            QueryView::Scheduling(ref mut q) => {
+            QueryViewMut::Scheduling(q) => {
                 q.set(gst::SchedulingFlags::SEQUENTIAL, 1, -1, 0);
                 q.add_scheduling_modes(&[gst::PadMode::Push]);
                 true
             }
-            QueryView::Latency(ref mut q) => {
+            QueryViewMut::Latency(q) => {
                 let state = self.state.lock().unwrap();
                 let settings = self.settings.lock().unwrap();
 
@@ -518,7 +506,7 @@ impl BaseSrcImpl for NdiSrc {
 
                     debug!(
                         CAT,
-                        obj = element,
+                        obj = self.obj(),
                         "Returning latency min {} max {}",
                         min,
                         max
@@ -529,17 +517,17 @@ impl BaseSrcImpl for NdiSrc {
                     false
                 }
             }
-            _ => BaseSrcImplExt::parent_query(self, element, query),
+            _ => BaseSrcImplExt::parent_query(self, query),
         }
     }
 
     fn create(
         &self,
-        element: &Self::Type,
         _offset: u64,
         _buffer: Option<&mut gst::BufferRef>,
         _length: u32,
     ) -> Result<CreateSuccess, gst::FlowError> {
+        let element = self.obj();
         let recv = {
             let mut state = self.state.lock().unwrap();
             match state.receiver.take() {
@@ -614,7 +602,7 @@ impl BaseSrcImpl for NdiSrc {
                         drop(state);
                         if latency_changed {
                             let _ = element.post_message(
-                                gst::message::Latency::builder().src(element).build(),
+                                gst::message::Latency::builder().src(&*element).build(),
                             );
                         }
 

@@ -43,7 +43,7 @@ impl ObjectSubclass for NdiSinkCombiner {
     fn with_class(klass: &Self::Class) -> Self {
         let templ = klass.pad_template("video").unwrap();
         let video_pad =
-            gst::PadBuilder::<gst_base::AggregatorPad>::from_template(&templ, Some("video"))
+            gst::PadBuilder::<gst_base::AggregatorPad>::from_template(&templ).name("video")
                 .build();
 
         Self {
@@ -55,10 +55,11 @@ impl ObjectSubclass for NdiSinkCombiner {
 }
 
 impl ObjectImpl for NdiSinkCombiner {
-    fn constructed(&self, obj: &Self::Type) {
+    fn constructed(&self) {
+        let obj = self.obj();
         obj.add_pad(&self.video_pad).unwrap();
 
-        self.parent_constructed(obj);
+        self.parent_constructed();
     }
 }
 
@@ -147,12 +148,12 @@ impl ElementImpl for NdiSinkCombiner {
         PAD_TEMPLATES.as_ref()
     }
 
-    fn release_pad(&self, element: &Self::Type, pad: &gst::Pad) {
+    fn release_pad(&self, pad: &gst::Pad) {
         let mut audio_pad_storage = self.audio_pad.lock().unwrap();
 
         if audio_pad_storage.as_ref().map(|p| p.upcast_ref()) == Some(pad) {
-            debug!(CAT, obj = element, "Release audio pad");
-            self.parent_release_pad(element, pad);
+            debug!(CAT, obj = self.obj(), "Release audio pad");
+            self.parent_release_pad(pad);
             *audio_pad_storage = None;
         }
     }
@@ -161,11 +162,11 @@ impl ElementImpl for NdiSinkCombiner {
 impl AggregatorImpl for NdiSinkCombiner {
     fn create_new_pad(
         &self,
-        agg: &Self::Type,
         templ: &gst::PadTemplate,
         _req_name: Option<&str>,
         _caps: Option<&gst::Caps>,
     ) -> Option<gst_base::AggregatorPad> {
+        let agg = self.obj();
         let mut audio_pad_storage = self.audio_pad.lock().unwrap();
 
         if audio_pad_storage.is_some() {
@@ -180,7 +181,7 @@ impl AggregatorImpl for NdiSinkCombiner {
         }
 
         let pad =
-            gst::PadBuilder::<gst_base::AggregatorPad>::from_template(templ, Some("audio")).build();
+            gst::PadBuilder::<gst_base::AggregatorPad>::from_template(templ).name("audio").build();
         *audio_pad_storage = Some(pad.clone());
 
         debug!(CAT, obj = agg, "Requested audio pad");
@@ -188,7 +189,7 @@ impl AggregatorImpl for NdiSinkCombiner {
         Some(pad)
     }
 
-    fn start(&self, agg: &Self::Type) -> Result<(), gst::ErrorMessage> {
+    fn start(&self) -> Result<(), gst::ErrorMessage> {
         let mut state_storage = self.state.lock().unwrap();
         *state_storage = Some(State {
             audio_info: None,
@@ -197,31 +198,31 @@ impl AggregatorImpl for NdiSinkCombiner {
             current_audio_buffers: Vec::new(),
         });
 
-        debug!(CAT, obj = agg, "Started");
+        debug!(CAT, obj = self.obj(), "Started");
 
         Ok(())
     }
 
-    fn stop(&self, agg: &Self::Type) -> Result<(), gst::ErrorMessage> {
+    fn stop(&self) -> Result<(), gst::ErrorMessage> {
         // Drop our state now
         let _ = self.state.lock().unwrap().take();
 
-        debug!(CAT, obj = agg, "Stopped");
+        debug!(CAT, obj = self.obj(), "Stopped");
 
         Ok(())
     }
 
-    fn next_time(&self, _agg: &Self::Type) -> Option<gst::ClockTime> {
+    fn next_time(&self) -> Option<gst::ClockTime> {
         // FIXME: What to do here? We don't really know when the next buffer is expected
         gst::ClockTime::NONE
     }
 
     fn clip(
         &self,
-        agg: &Self::Type,
         agg_pad: &gst_base::AggregatorPad,
         mut buffer: gst::Buffer,
     ) -> Option<gst::Buffer> {
+        let agg = self.obj();
         let segment = match agg_pad.segment().downcast::<gst::ClockTime>() {
             Ok(segment) => segment,
             Err(_) => {
@@ -314,12 +315,12 @@ impl AggregatorImpl for NdiSinkCombiner {
 
     fn aggregate(
         &self,
-        agg: &Self::Type,
         timeout: bool,
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
         // FIXME: Can't really happen because we always return NONE from get_next_time() but that
         // should be improved!
         assert!(!timeout);
+        let agg = self.obj();
 
         // Because peek_buffer() can call into clip() and that would take the state lock again,
         // first try getting buffers from both pads here
@@ -539,11 +540,11 @@ impl AggregatorImpl for NdiSinkCombiner {
 
     fn sink_event(
         &self,
-        agg: &Self::Type,
         pad: &gst_base::AggregatorPad,
         event: gst::Event,
     ) -> bool {
         use gst::EventView;
+        let agg = self.obj();
 
         match event.view() {
             EventView::Caps(caps) => {
@@ -604,19 +605,19 @@ impl AggregatorImpl for NdiSinkCombiner {
             _ => (),
         }
 
-        self.parent_sink_event(agg, pad, event)
+        self.parent_sink_event(pad, event)
     }
 
     fn sink_query(
         &self,
-        agg: &Self::Type,
         pad: &gst_base::AggregatorPad,
         query: &mut gst::QueryRef,
     ) -> bool {
-        use gst::QueryView;
+        use gst::QueryViewMut;
+        let agg = self.obj();
 
         match query.view_mut() {
-            QueryView::Caps(_) if pad == &self.video_pad => {
+            QueryViewMut::Caps(_) if pad == &self.video_pad => {
                 // Directly forward caps queries
                 let srcpad = agg.static_pad("src").unwrap();
                 return srcpad.peer_query(query);
@@ -624,10 +625,10 @@ impl AggregatorImpl for NdiSinkCombiner {
             _ => (),
         }
 
-        self.parent_sink_query(agg, pad, query)
+        self.parent_sink_query(pad, query)
     }
 
-    fn negotiate(&self, _agg: &Self::Type) -> bool {
+    fn negotiate(&self) -> bool {
         // No negotiation needed as the video caps are just passed through
         true
     }

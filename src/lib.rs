@@ -141,10 +141,10 @@ static DEFAULT_RECEIVER_NDI_NAME: Lazy<String> = Lazy::new(|| {
 
 #[cfg(feature = "reference-timestamps")]
 static TIMECODE_CAPS: Lazy<gst::Caps> =
-    Lazy::new(|| gst::Caps::new_simple("timestamp/x-ndi-timecode", &[]));
+    Lazy::new(|| gst::Caps::new_empty_simple("timestamp/x-ndi-timecode"));
 #[cfg(feature = "reference-timestamps")]
 static TIMESTAMP_CAPS: Lazy<gst::Caps> =
-    Lazy::new(|| gst::Caps::new_simple("timestamp/x-ndi-timestamp", &[]));
+    Lazy::new(|| gst::Caps::new_empty_simple("timestamp/x-ndi-timestamp"));
 
 gst::plugin_define!(
     ndi,

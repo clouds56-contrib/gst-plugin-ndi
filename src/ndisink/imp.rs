@@ -64,13 +64,13 @@ impl ObjectSubclass for NdiSink {
 impl ObjectImpl for NdiSink {
     fn properties() -> &'static [glib::ParamSpec] {
         static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
-            vec![glib::ParamSpecString::new(
-                "ndi-name",
-                "NDI Name",
-                "NDI Name to use",
-                Some(DEFAULT_SENDER_NDI_NAME.as_ref()),
-                glib::ParamFlags::READWRITE,
-            )]
+            vec![glib::ParamSpecString::builder("ndi-name")
+                .nick("NDI Name")
+                .blurb("NDI Name to use")
+                .default_value(Some(DEFAULT_SENDER_NDI_NAME.as_ref()))
+                .flags(glib::ParamFlags::READWRITE)
+                .build()
+            ]
         });
 
         PROPERTIES.as_ref()
@@ -78,7 +78,6 @@ impl ObjectImpl for NdiSink {
 
     fn set_property(
         &self,
-        _obj: &Self::Type,
         _id: usize,
         value: &glib::Value,
         pspec: &glib::ParamSpec,
@@ -94,7 +93,7 @@ impl ObjectImpl for NdiSink {
         };
     }
 
-    fn property(&self, _obj: &Self::Type, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
+    fn property(&self, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
         match pspec.name() {
             "ndi-name" => {
                 let settings = self.settings.lock().unwrap();
@@ -176,7 +175,8 @@ impl ElementImpl for NdiSink {
 }
 
 impl BaseSinkImpl for NdiSink {
-    fn start(&self, element: &Self::Type) -> Result<(), gst::ErrorMessage> {
+    fn start(&self) -> Result<(), gst::ErrorMessage> {
+        let element = self.obj();
         let mut state_storage = self.state.lock().unwrap();
         let settings = self.settings.lock().unwrap();
 
@@ -200,25 +200,25 @@ impl BaseSinkImpl for NdiSink {
         Ok(())
     }
 
-    fn stop(&self, element: &Self::Type) -> Result<(), gst::ErrorMessage> {
+    fn stop(&self) -> Result<(), gst::ErrorMessage> {
         let mut state_storage = self.state.lock().unwrap();
 
         *state_storage = None;
-        info!(CAT, obj = element, "Stopped");
+        info!(CAT, obj = self.obj(), "Stopped");
 
         Ok(())
     }
 
-    fn unlock(&self, _element: &Self::Type) -> Result<(), gst::ErrorMessage> {
+    fn unlock(&self) -> Result<(), gst::ErrorMessage> {
         Ok(())
     }
 
-    fn unlock_stop(&self, _element: &Self::Type) -> Result<(), gst::ErrorMessage> {
+    fn unlock_stop(&self) -> Result<(), gst::ErrorMessage> {
         Ok(())
     }
 
-    fn set_caps(&self, element: &Self::Type, caps: &gst::Caps) -> Result<(), gst::LoggableError> {
-        debug!(CAT, obj = element, "Setting caps {}", caps);
+    fn set_caps(&self, caps: &gst::Caps) -> Result<(), gst::LoggableError> {
+        debug!(CAT, obj = self.obj(), "Setting caps {}", caps);
 
         let mut state_storage = self.state.lock().unwrap();
         let state = match &mut *state_storage {
@@ -246,9 +246,9 @@ impl BaseSinkImpl for NdiSink {
 
     fn render(
         &self,
-        element: &Self::Type,
         buffer: &gst::Buffer,
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
+        let element = self.obj();
         let mut state_storage = self.state.lock().unwrap();
         let state = match &mut *state_storage {
             None => return Err(gst::FlowError::Error),

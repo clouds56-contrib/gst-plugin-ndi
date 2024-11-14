@@ -60,7 +60,7 @@ impl DeviceProviderImpl for DeviceProvider {
         Some(&*METADATA)
     }
 
-    fn probe(&self, _device_provider: &Self::Type) -> Vec<gst::Device> {
+    fn probe(&self) -> Vec<gst::Device> {
         self.current_devices
             .lock()
             .unwrap()
@@ -69,7 +69,8 @@ impl DeviceProviderImpl for DeviceProvider {
             .collect()
     }
 
-    fn start(&self, device_provider: &Self::Type) -> Result<(), gst::LoggableError> {
+    fn start(&self) -> Result<(), gst::LoggableError> {
+        let device_provider = self.obj();
         let mut thread_guard = self.thread.lock().unwrap();
         if thread_guard.is_some() {
             log!(CAT, obj = device_provider, "Device provider already started");
@@ -86,7 +87,7 @@ impl DeviceProviderImpl for DeviceProvider {
                 Some(device_provider) => device_provider,
             };
 
-            let imp = DeviceProvider::from_instance(&device_provider);
+            let imp = DeviceProvider::from_obj(&device_provider);
             {
                 let mut find_guard = imp.find.lock().unwrap();
                 if find_guard.is_some() {
@@ -110,7 +111,7 @@ impl DeviceProviderImpl for DeviceProvider {
                     Some(device_provider) => device_provider,
                 };
 
-                let imp = DeviceProvider::from_instance(&device_provider);
+                let imp = DeviceProvider::from_obj(&device_provider);
                 if !imp.is_running.load(atomic::Ordering::SeqCst) {
                     break;
                 }
@@ -123,7 +124,7 @@ impl DeviceProviderImpl for DeviceProvider {
         Ok(())
     }
 
-    fn stop(&self, _device_provider: &Self::Type) {
+    fn stop(&self) {
         if let Some(_thread) = self.thread.lock().unwrap().take() {
             self.is_running.store(false, atomic::Ordering::SeqCst);
             // Don't actually join because that might take a while
@@ -153,7 +154,7 @@ impl DeviceProvider {
 
         // First check for each device we previously knew if it's still available
         for old_device in &*current_devices_guard {
-            let old_device_imp = Device::from_instance(old_device);
+            let old_device_imp = Device::from_obj(old_device);
             let old_source = old_device_imp.source.get().unwrap();
 
             if !sources.contains(&*old_source) {
@@ -217,21 +218,16 @@ impl GstObjectImpl for Device {}
 impl DeviceImpl for Device {
     fn create_element(
         &self,
-        _device: &Self::Type,
         name: Option<&str>,
     ) -> Result<gst::Element, gst::LoggableError> {
         let source_info = self.source.get().unwrap();
-        let element = glib::Object::with_type(
-            crate::ndisrc::NdiSrc::static_type(),
-            &[
-                ("name", &name),
-                ("ndi-name", &source_info.ndi_name()),
-                ("url-address", &source_info.url_address()),
-            ],
-        )
-        .unwrap()
-        .dynamic_cast::<gst::Element>()
-        .unwrap();
+        let element = glib::Object::builder_with_type(crate::ndisrc::NdiSrc::static_type())
+            .property("name", &name)
+            .property("ndi-name", &source_info.ndi_name())
+            .property("url-address", &source_info.url_address())
+            .build()
+            .dynamic_cast::<gst::Element>()
+            .unwrap();
 
         Ok(element)
     }
@@ -253,14 +249,13 @@ impl super::Device {
             .field("url-address", &source.url_address())
             .build();
 
-        let device = glib::Object::new::<super::Device>(&[
-            ("caps", &caps),
-            ("display-name", &display_name),
-            ("device-class", &device_class),
-            ("properties", &extra_properties),
-        ])
-        .unwrap();
-        let device_impl = Device::from_instance(&device);
+        let device = glib::Object::builder::<super::Device>()
+            .property("caps", &caps)
+            .property("display-name", &display_name)
+            .property("device-class", &device_class)
+            .property("properties", &extra_properties)
+            .build();
+        let device_impl = Device::from_obj(&device);
 
         device_impl.source.set(source.to_owned()).unwrap();
 
